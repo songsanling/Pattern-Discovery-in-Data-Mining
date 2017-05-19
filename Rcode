@@ -1,0 +1,122 @@
+setwd("C:/D/study/Coursera/patterndiscovery")
+library(arules)
+library('xml2')
+library('BH')
+library('rvest')
+
+
+## Setup Options, Loading Required Libraries and Preparing Environment
+## Loading the packages and setting adjustment
+suppressMessages(library('utils'))
+suppressMessages(require('plyr', quietly = TRUE))
+suppressMessages(require('BBmisc', quietly = TRUE))
+
+pkgs <- c('jsonlite', 'arules', 'arulesViz', 'readr', 'knitr', 'stringr', 'stringi', 'dplyr', 'purrr', 'magrittr', 'formattable', 'DT', 'lubridate', 'googleVis', 'rvest')
+suppressAll(l_ply(pkgs, require, quietly = TRUE, character.only = TRUE))  %%Evaluates an expression and suppresses all output except for errors, meaning: prints, messages, warnings and package startup messages. 
+rm(pkgs) ## remove objects
+
+## Set the googleVis options first to change the behaviour of plot.gvis, so that only the chart component of the HTML file is written into the output file.
+op <- options(gvis.plot.tag = 'chart')
+
+suppressMessages(require('arules', quietly = TRUE))
+suppressMessages(require('BBmisc', quietly = TRUE))
+lnk <- 'https://raw.githubusercontent.com/songsanling/Pattern-Discovery-in-Data-Mining/master/categories.txt'
+
+transDat <- suppressAll(read.transactions(lnk, format = 'single', cols = c(1, 2), sep = ';'))
+## single型表现为两列，第一列为交易号，第二列为该交易中包含的一项，例如：1 可乐
+transDat2 <- suppressAll(read.transactions(lnk, format = 'basket', sep = ';'))
+## basket型一行表示一条交易记录，交易项之间用分隔符分开，分隔符在sep参数中设定：可乐 雪碧 美年达
+
+
+#'@ txt <- suppressWarnings(readBin(lnk, what = 'character')) #only read first 1000 words but all more than 220000 words.
+txt <- lnk %>% read_html %>% html_text
+txt %<>% str_replace_all('\n', ';') %>% str_split(';') %>% .[[1]] %>% na.omit
+txt[[1]]  
+uniqueItem <- sort(unique(txt))
+
+# write(transDat, file = './4 Pattern Discovery in Data Mining/data/single.txt', sep = ';')
+
+# write(transDat2, file = './4 Pattern Discovery in Data Mining/data/basket.txt', sep = ';')
+
+
+# 2.1 Frequent Single Item Mining
+itemFrequencyPlot(transDat, topN = 20, type = 'absolute', col = rainbow(4))
+itemFrequencyPlot(transDat2, topN = 20, type = 'absolute', col = rainbow(4))
+inspect(transDat[1:10]) # view the observations
+length(transDat) # get number of observations
+size(transDat[1:10]) # number of items in each observation
+
+## Endless proceed 3 hours due to length of list, here I omit LIST() and only process inspect().
+#'@ LIST(transDat) # convert 'transactions' to a list, note the LIST in CAPS
+inspect(transDat2[1:100]) # view the observations
+length(transDat2) # get number of observations
+size(transDat2[1:100]) # number of items in each observation
+
+## Endless proceed 3 hours due to length of list, here I omit LIST() and only process inspect().
+#'@ LIST(transDat) # convert 'transactions' to a list, note the LIST in CAPS
+head(transDat)
+head(transDat2)
+frequentItems <- eclat(transDat, parameter = list(supp = 0.07, maxlen = 15)) # calculates support for frequent items
+
+itemFrequencyPlot(transDat, topN = 10, type = 'absolute', col = rainbow(4)) # plot frequent items
+frequentItems <- eclat(transDat2, parameter = list(supp = 0.07, maxlen = 15)) # calculates support for frequent items
+
+itemFrequencyPlot(transDat2, topN = 10, type = 'absolute', col = rainbow(4)) # plot frequent items
+
+
+
+
+
+#2.2 Frequent Itemset Mining using Apriori
+
+# Get the rules
+rules <- apriori(transDat, parameter = list(supp = 0.01, conf = 0.5))
+ 
+# Show the top 5 rules, but only 2 digits
+options(digits=2)
+inspect(sort(subset(rules[1:5], subset = lift > 6), by = 'confidence'))
+# Get the rules
+rules <- apriori(transDat2, parameter = list(supp = 0.01, conf = 0.5))
+ 
+# Show the top 5 rules, but only 2 digits
+options(digits=2)
+inspect(sort(subset(rules[1:5], subset = lift > 6), by = 'confidence'))
+## All plots unable proceed...
+
+# Interactive Plot
+#'@ 
+library(arulesViz)
+plot(rules[1:25], method = 'graph', interactive = TRUE, shading = 'confidence') # feel free to expand and move around the objects in this plot
+
+#'@ plot(rules[1:25])
+
+#'@ plot(rules[1:25], method = 'grouped', control = list(k = 20))
+
+#'@ plot(rules[1:25], measure = c('support', 'lift'), shading = 'confidence')
+
+#'@ plot(rules[1:25], method = NULL, measure = 'support', shading = 'lift', interactive = FALSE)
+## Set options back to original options
+options(op)
+
+
+
+
+
+
+
+
+
+
+suppressMessages(require('dplyr', quietly = TRUE))
+suppressMessages(require('formattable', quietly = TRUE))
+
+lubridate::now()
+sys1 <- devtools::session_info()$platform %>% unlist %>% data.frame(Category = names(.), session_info = .)
+rownames(sys1) <- NULL
+sys1 %>% formattable %>% as.htmlwidget
+
+data.frame(Sys.info()) %>% mutate(Category = rownames(.)) %>% .[2:1] %>% rename(Category = Category, Sys.info =  Sys.info..) %>% formattable %>% as.htmlwidget
+
+rm(sys1)
+
+
